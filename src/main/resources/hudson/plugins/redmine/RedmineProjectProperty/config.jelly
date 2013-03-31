@@ -9,5 +9,8 @@
   <f:entry title="Redmine version">
   	<f:textbox name="redmine.redmineVersionNumber" value="${instance.redmineVersionNumber}" />
   </f:entry>
-    
+  <f:entry title="Redmine repository root (removed from the link)">
+  	<f:textbox name="redmine.redmineRepositoryRoot" value="${instance.redmineRepositoryRoot}" />
+  </f:entry>
+
 </j:jelly>

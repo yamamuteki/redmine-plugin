@@ -1,11 +1,5 @@
 package hudson.plugins.redmine;
 
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-
-import org.kohsuke.stapler.DataBoundConstructor;
-
 import hudson.Extension;
 import hudson.model.AbstractProject;
 import hudson.model.Descriptor;
@@ -15,9 +9,16 @@ import hudson.scm.SubversionRepositoryBrowser;
 import hudson.scm.SubversionChangeLogSet.LogEntry;
 import hudson.scm.SubversionChangeLogSet.Path;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.regex.Pattern;
+
+import org.kohsuke.stapler.DataBoundConstructor;
+
 /**
  * produces redmine links.
- * 
+ *
  * @author gaooh
  * @date 2008/10/26
  */
@@ -26,18 +27,18 @@ public class RedmineRepositoryBrowser extends SubversionRepositoryBrowser {
 	@DataBoundConstructor
     public RedmineRepositoryBrowser() {
     }
-	
+
 	@Override
 	public URL getDiffLink(Path path) throws IOException {
 		if(path.getEditType()!= EditType.EDIT) {
-            return null;    
+            return null;
 		}
         URL baseUrl = getRedmineURL(path.getLogEntry());
         String projectName = getProject(path.getLogEntry());
         String filePath = getFilePath(path.getLogEntry(), path.getValue());
-        
+
         int revision = path.getLogEntry().getRevision();
-        return new URL(baseUrl, "repositories/diff/" + projectName + filePath + "?rev=" + revision);
+        return new URL(baseUrl, "projects/" + projectName + "/repository/revisions/" + revision + "/diff" + filePath);
 	}
 
 	@Override
@@ -45,22 +46,23 @@ public class RedmineRepositoryBrowser extends SubversionRepositoryBrowser {
 		URL baseUrl = getRedmineURL(path.getLogEntry());
 		String projectName = getProject(path.getLogEntry());
 		String filePath = getFilePath(path.getLogEntry(), path.getValue());
-        
-        return baseUrl == null ? null : new URL(baseUrl, "repositories/entry/" + projectName + filePath);
+
+        int revision = path.getLogEntry().getRevision();
+        return baseUrl == null ? null : new URL(baseUrl, "projects/" + projectName + "/repository/revisions/" + revision + "/entry" + filePath);
 	}
 
 	@Override
 	public URL getChangeSetLink(LogEntry changeSet) throws IOException {
 		URL baseUrl = getRedmineURL(changeSet);
 		String projectName = getProject(changeSet);
-        return baseUrl == null ? null : new URL(baseUrl, "repositories/revision/" + projectName + "/" + changeSet.getRevision());
+        return baseUrl == null ? null : new URL(baseUrl, "projects/" + projectName + "/repository/revisions/" + changeSet.getRevision());
 	}
 
 	@Override
 	public Descriptor<RepositoryBrowser<?>> getDescriptor() {
 		 return DESCRIPTOR;
 	}
-	
+
 	private URL getRedmineURL(LogEntry logEntry) throws MalformedURLException {
         AbstractProject<?,?> p = (AbstractProject<?,?>)logEntry.getParent().build.getProject();
         RedmineProjectProperty rpp = p.getProperty(RedmineProjectProperty.class);
@@ -80,11 +82,11 @@ public class RedmineRepositoryBrowser extends SubversionRepositoryBrowser {
         	return rpp.projectName;
         }
 	}
-	
-	private String getFilePath(LogEntry logEntry, String fileFullPath) {
+
+	private String getFilePath(LogEntry logEntry, String fileFullPath) throws MalformedURLException {
 		AbstractProject<?,?> p = (AbstractProject<?,?>)logEntry.getParent().build.getProject();
 		RedmineProjectProperty rpp = p.getProperty(RedmineProjectProperty.class);
-		
+
 		String filePath = "";
         if(VersionUtil.isVersionBefore081(rpp.redmineVersionNumber)) {
         	String[] filePaths = fileFullPath.split("/");
@@ -97,14 +99,18 @@ public class RedmineRepositoryBrowser extends SubversionRepositoryBrowser {
         			}
         		}
         	}
-        } else { 
+        } else {
         	filePath = fileFullPath;
         }
-        
+
+        if(rpp != null && rpp.redmineRepositoryRoot != null) {
+        	filePath = filePath.replaceFirst(Pattern.quote(rpp.redmineRepositoryRoot), "");
+        }
+
         return filePath;
-        
+
 	}
-	
+
 	@Extension
 	public static final DescriptorImpl DESCRIPTOR = new DescriptorImpl();
 
